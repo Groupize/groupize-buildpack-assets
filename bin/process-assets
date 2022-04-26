@@ -21,14 +21,13 @@ Dir.glob("public/packs/js/**/*.js").each do |file| # rubocop:disable Metrics/Blo
   File.delete("#{file}.map")
   File.delete("#{file}.map.gz")
 
-  `./node_modules/terser/bin/terser #{file} -o #{file} -c -m --source-map "url='#{bucket.url}/assets/#{file_short_name}.map.gz'"`
+  `./node_modules/terser/bin/terser #{file} -o #{file} -c -m --source-map "url='#{bucket.url}/assets/#{file_short_name}.map'"`
   `gzip -k #{file}`
-  `gzip -k #{file}.map`
 
   begin
     s3 = Aws::S3::Resource.new(region: region)
-    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file_short_name}.map.gz")
-    obj.upload_file("#{file}.map.gz", { acl: "public-read" })
+    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file_short_name}.map")
+    obj.upload_file("#{file}.map", { acl: "public-read" })
   rescue StandardError => e
     puts "Error uploading object: #{e.message}"
   end
