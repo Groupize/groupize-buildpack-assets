@@ -12,11 +12,18 @@ puts Dir.getwd
 region = ENV.fetch("AWS_REGION", "us-east-1")
 mapping_list = []
 
+bucket = Aws::S3::Resource.new(region: region).bucket(ENV["S3_BUCKET_NAME"])
+
 Dir.glob("public/packs/js/**/*.js").each do |file| # rubocop:disable Metrics/BlockLength
   file_short_name = file.gsub(/public\/packs\/js\//, "")
   puts "Processing: #{file_short_name}"
 
-  `./node_modules/terser/bin/terser #{file} -o #{file} -c -m`
+  # Temp: Will remove from webpack config once I have this working. For now just delete the bad mapping files.
+  File.delete("#{file}.map")
+  File.delete("#{file}.map.gz")
+
+  `./node_modules/terser/bin/terser #{file} -o #{file} -c -m --source-map "url='#{bucket.url}/assets/#{file_short_name}.map.gz'"`
+  `gzip -k #{file}.map`
 
   begin
     asset_name = "assets/#{file_short_name}.map.gz"
