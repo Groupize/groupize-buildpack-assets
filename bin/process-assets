@@ -34,10 +34,18 @@ Dir.glob("public/packs/js/**/*.js").each do |file| # rubocop:disable Metrics/Blo
 
   begin
     s3 = Aws::S3::Resource.new(region: region)
-    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file_short_name}.gz")
+    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file}")
     obj.upload_file("#{file}.gz", { acl: "public-read" })
   rescue StandardError => e
-    puts "Error uploading gzipped JS: #{e.message}"
+    puts "Error uploading source JS: #{e.message}"
+  end
+
+  begin
+    s3 = Aws::S3::Resource.new(region: region)
+    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file}.gz")
+    obj.upload_file("#{file}.gz", { acl: "public-read" })
+  rescue StandardError => e
+    puts "Error uploading gzipped source JS: #{e.message}"
   end
 
   File.delete(file)
