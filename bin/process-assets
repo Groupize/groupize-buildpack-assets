@@ -10,7 +10,6 @@ end
 puts Dir.getwd
 
 region = ENV.fetch("AWS_REGION", "us-east-1")
-mapping_list = []
 
 bucket = Aws::S3::Resource.new(region: region).bucket(ENV["S3_BUCKET_NAME"])
 
@@ -23,22 +22,16 @@ Dir.glob("public/packs/js/**/*.js").each do |file| # rubocop:disable Metrics/Blo
   File.delete("#{file}.map.gz")
 
   `./node_modules/terser/bin/terser #{file} -o #{file} -c -m --source-map "url='#{bucket.url}/assets/#{file_short_name}.map.gz'"`
+  `gzip -k #{file}`
   `gzip -k #{file}.map`
 
   begin
-    asset_name = "assets/#{file_short_name}.map.gz"
     s3 = Aws::S3::Resource.new(region: region)
-    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object(asset_name)
+    obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/#{file_short_name}.map.gz")
     obj.upload_file("#{file}.map.gz", { acl: "public-read" })
-    File.open(file, "a") do |f|
-      f.puts("\n//# sourceMappingURL=#{obj.public_url}")
-    end
-    mapping_list << asset_name
   rescue StandardError => e
     puts "Error uploading object: #{e.message}"
   end
-
-  `gzip -k #{file}`
 
   begin
     s3 = Aws::S3::Resource.new(region: region)
@@ -52,17 +45,3 @@ Dir.glob("public/packs/js/**/*.js").each do |file| # rubocop:disable Metrics/Blo
   File.delete("#{file}.map")
   File.delete("#{file}.map.gz")
 end
-
-File.open("mapping_files.txt", "w+") do |f|
-  mapping_list.each { |map| f.puts(map) }
-end
-
-begin
-  s3 = Aws::S3::Resource.new(region: region)
-  obj = s3.bucket(ENV["S3_BUCKET_NAME"]).object("assets/mapping_files.txt")
-  obj.upload_file("mapping_files.txt")
-rescue StandardError => e
-  Rails.logger.error "Error uploading mapping list: #{e.message}"
-end
-
-File.delete("mapping_files.txt")
